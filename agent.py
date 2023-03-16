@@ -50,19 +50,36 @@ def print_and_track_conversation(role, content):
     conversation_history.append({"role": role, "content": content})
     print(f"{role}: {content}")
 
+def sanitize_text(text):
+    while text.startswith("AI:"):
+        text = text[4:].lstrip()  # Remove the "AI: " prefix and any leading whitespace
+    return text
+
 def generate_ai_response(prompt, conversation_history):
-    history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in conversation_history])
+    sanitized_history = []
+    for msg in conversation_history:
+        role, content = msg['role'], msg['content']
+        content = sanitize_text(content)
+        sanitized_history.append({"role": role, "content": content})
+    
+    history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in sanitized_history])
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt=f"{history}\n{prompt}\n",  # Removed the "AI: " prefix
+        prompt=f"{history}\n{prompt}\n",
         max_tokens=500,
         n=1,
         stop=None,
-        temperature=0.7,
+        temperature=0.5,
     )
     answer = response.choices[0].text.strip()
+    answer = truncate_text(answer, max_lines=10)  # Truncate the answer to a maximum of 10 lines
     return answer
 
+def truncate_text(text, max_lines=10):
+    lines = text.splitlines()
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+    return '\n'.join(lines)
 
 def execute_code(code):
     print(f"Executing: {code}")
