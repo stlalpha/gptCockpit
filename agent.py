@@ -98,7 +98,7 @@ def execute_code(code):
 
         stdout_output = result.stdout
         stderr_output = result.stderr
-        success = result.returncode == 0
+        success = result.returncode == 0 and stdout_output.strip() != ""
 
     except subprocess.TimeoutExpired:
         stdout_output = ""
@@ -133,7 +133,7 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
     else:
         context = response
 
-    for _ in range(num_iterations - 1):  # Change the range to `num_iterations - 1` to account for the initial response
+    for _ in range(num_iterations - 1):
         current_prompt = context
         response = ask_davinci(current_prompt, conversation_history)
 
@@ -160,6 +160,7 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
                 print("Error:", error_message)
         else:
             context = response
+
 
 # ... (The code below this line remains the same)
 
