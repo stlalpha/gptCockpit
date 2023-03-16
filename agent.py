@@ -141,9 +141,13 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
         else:
             loop_prompt_error = loop_prompt_error.format(error="")
 
-if __name__ == "__main__":
-    main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
 
+if __name__ == "__main__":
+    use_default = input("Do you want to use the default world context prompt? (yes/no): ").lower()
+    if use_default == "no" or use_default == "n":
+        world_context_prompt = input("Please enter your custom world context prompt: ")
+
+    main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
     summary_prompt = config["Prompts"]["summary_prompt"]
     summary_response = ask_davinci(summary_prompt, conversation_history)
     add_to_history("User", summary_prompt)
