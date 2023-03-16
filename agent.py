@@ -111,6 +111,7 @@ def execute_code(code):
 
 # Main loop
 
+# Main loop
 def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
     response = ask_davinci(world_context_prompt, conversation_history)
 
@@ -143,10 +144,11 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
 if __name__ == "__main__":
     main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
 
-    summary_prompt = config.get('Prompts', 'summary_prompt')
+    summary_prompt = config["Prompts"]["summary_prompt"]
     summary_response = ask_davinci(summary_prompt, conversation_history)
     add_to_history("User", summary_prompt)
     add_to_history("AI", summary_response)
 
     console.print(f"User: {summary_prompt}\nAI: {summary_response}")
     sys.exit(0)
+
