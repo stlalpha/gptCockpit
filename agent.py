@@ -30,8 +30,6 @@ env_vars = load_env(env_file_path)
 openai_api_key = env_vars.get("OPENAI_API_KEY")
 openai.api_key = openai_api_key
 
-
-
 # Read configuration data from a JSON file
 def read_config(file_path):
     try:
@@ -46,25 +44,14 @@ def read_config(file_path):
 config_file_path = "config.json"
 config = read_config(config_file_path)
 
-world_context_prompt = config["Prompts"]["world_context_prompt"]
-loop_prompt_success = config["Prompts"]["loop_prompt_success"]
-loop_prompt_error = config["Prompts"]["loop_prompt_error"]
-num_iterations = config["Settings"]["num_iterations"]
-
 conversation_history = []
 
-console = Console()
+def print_and_track_conversation(role, content):
+    conversation_history.append({"role": role, "content": content})
+    print(f"{role}: {content}")
 
-# Add message to conversation history
-def add_to_history(role, content):
-    message = {"role": role, "content": content}
-    conversation_history.append(message)
-
-# Ask DaVinci for a response based on the prompt and conversation history
-def ask_davinci(prompt, conversation_history):
+def generate_ai_response(prompt, conversation_history):
     history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in conversation_history])
-    console.print(f"\nUser Prompt: {prompt}")
-
     response = openai.Completion.create(
         engine="text-davinci-003",
         prompt=f"{history}\nAI: {prompt}\n",
@@ -73,14 +60,8 @@ def ask_davinci(prompt, conversation_history):
         stop=None,
         temperature=0.5,
     )
-
     answer = response.choices[0].text.strip()
-    print(f"Raw AI Response: {response.choices[0].text}")
-    print(f"Stripped AI Response: {answer}")
     return answer
-
-
-# Execute code and return output and success status
 
 def execute_code(code):
     print(f"Executing: {code}")
@@ -111,69 +92,40 @@ def execute_code(code):
     output = f"STDOUT:\n{stdout_output}\nSTDERR:\n{stderr_output}"
     return output, success
 
-# Main loop
-
 def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
-    add_to_history("User", world_context_prompt)  # Add the world context prompt to the conversation history
-    response = ask_davinci(world_context_prompt, conversation_history)  # Get the initial response based on the world context prompt
+    print_and_track_conversation("User", world_context_prompt)
+    response = generate_ai_response(world_context_prompt, conversation_history)
 
-    if response.startswith("@CODE-SNIPPET:"):
-        add_to_history("AI", response)
-        code_snippet = response[len("@CODE-SNIPPET:"):].strip()
-        print("Executing code snippet...")
-        output, success = execute_code(code_snippet)
-        print("Code snippet output:\n", output)
-
-        if success and output.strip():
-            context = loop_prompt_success
-        else:
-            if not output.strip():
-                error_message = "No output was produced."
-            else:
-                error_message = output.split("\n")[-2]
-            context = loop_prompt_error.format(error=error_message)
-            print("Error:", error_message)
-    else:
-        context = response
-
-    for _ in range(num_iterations - 1):  # Change the range to `num_iterations - 1` to account for the initial response
-        current_prompt = context
-        response = ask_davinci(current_prompt, conversation_history)
-
-        if response is None:
-            print("AI response is None. Skipping this iteration.")
-            continue
-
-        add_to_history("User", current_prompt)
-        add_to_history("AI", response)
-        print("AI:", response)
-
+    for i in range(num_iterations):
         if response.startswith("@CODE-SNIPPET:"):
             code_snippet = response[len("@CODE-SNIPPET:"):].strip()
-            print("Executing code snippet...")
+            print("Executing code snippet...\n", code_snippet)
 
             output, success = execute_code(code_snippet)
             print("Code snippet output:\n", output)
 
             if success and output.strip():
-                context = loop_prompt_success
+                current_prompt = loop_prompt_success
             else:
                 if not output.strip():
                     error_message = "No output was produced."
                 else:
                     error_message = output.split("\n")[-2]
-                context = loop_prompt_error.format(error=error_message)
+                current_prompt = loop_prompt_error.format(error=error_message)
                 print("Error:", error_message)
+
+            current_prompt = f"{current_prompt}\n{output}"
         else:
-            context = response
+            current_prompt = response
 
+        print_and_track_conversation("User", current_prompt)
+        response = generate_ai_response(current_prompt, conversation_history)
+        print_and_track_conversation("AI", response)
 
-
-# ... (The code below this line remains the same)
-
-
-
-
+world_context_prompt = config["Prompts"]["world_context_prompt"]
+loop_prompt_success = config["Prompts"]["loop_prompt_success"]
+loop_prompt_error = config["Prompts"]["loop_prompt_error"]
+num_iterations = config["Settings"]["num_iterations"]
 
 if __name__ == "__main__":
     use_default = input("Do you want to use the default world context prompt? (yes/no): ").lower()
@@ -186,6 +138,6 @@ if __name__ == "__main__":
 
     main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
     summary_prompt = config["Prompts"]["summary_prompt"]
-    summary_response = ask_davinci(summary_prompt, conversation_history)
+    summary_response = generate_ai_response(summary_prompt, conversation_history)
     print(f"\nUser Prompt: {summary_prompt}\nAI Response: {summary_response}")
     sys.exit(0)
