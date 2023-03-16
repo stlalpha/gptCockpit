@@ -114,10 +114,27 @@ def execute_code(code):
 # Main loop
 
 def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
-    context = [world_context_prompt]
+    add_to_history("User", world_context_prompt)  # Add the world context prompt to the conversation history
+    response = ask_davinci(world_context_prompt, conversation_history)  # Get the initial response based on the world context prompt
 
-    for _ in range(num_iterations):
-        current_prompt = context[-1]
+    if response.startswith("@CODE-SNIPPET:"):
+        add_to_history("AI", response)
+        code_snippet = response[len("@CODE-SNIPPET:"):].strip()
+        print("Executing code snippet...")
+        output, success = execute_code(code_snippet)
+        print("Code snippet output:\n", output)
+
+        if success:
+            context = loop_prompt_success
+        else:
+            error_message = output.split("\n")[-2]
+            context = loop_prompt_error.format(error=error_message)
+            print("Error:", error_message)
+    else:
+        context = response
+
+    for _ in range(num_iterations - 1):  # Change the range to `num_iterations - 1` to account for the initial response
+        current_prompt = context
         response = ask_davinci(current_prompt, conversation_history)
 
         if response is None:
@@ -136,18 +153,15 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
             print("Code snippet output:\n", output)
 
             if success:
-                context.append(loop_prompt_success)
+                context = loop_prompt_success
             else:
                 error_message = output.split("\n")[-2]
-                context.append(loop_prompt_error.format(error=error_message))
+                context = loop_prompt_error.format(error=error_message)
                 print("Error:", error_message)
-
-                add_to_history("User", f"@CODE-SNIPPET:\n{code_snippet}")
-                add_to_history("AI", loop_prompt_error.format(error=error_message))
         else:
-            context.append(response)
+            context = response
 
-
+# ... (The code below this line remains the same)
 
 
 
