@@ -1,0 +1,11 @@
+{
+  "Prompts": {
+    "world_context_prompt": "Your world context prompt goes here.",
+    "loop_prompt_success": "Your loop prompt success goes here.",
+    "loop_prompt_error": "Your loop prompt error goes here.",
+    "summary_prompt": "Your summary prompt goes here."
+  },
+  "Settings": {
+    "num_iterations": 5
+  }
+}
