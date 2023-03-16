@@ -8,6 +8,27 @@ from io import StringIO
 from contextlib import redirect_stdout, redirect_stderr
 from rich.console import Console
 from rich.syntax import Syntax
+import subprocess
+import tempfile
+
+# read secrets
+def load_env(file_path):
+    env_vars = {}
+
+    try:
+        with open(file_path, 'r') as f:
+            for line in f:
+                key, value = line.strip().split('=', 1)
+                env_vars[key] = value
+    except FileNotFoundError:
+        print(f"Error: Unable to read the .env file at '{file_path}'.")
+
+    return env_vars
+
+env_file_path = ".env"
+env_vars = load_env(env_file_path)
+openai_api_key = env_vars.get("OPENAI_API_KEY")
+
 
 # Read configuration data from a JSON file
 def read_config(file_path):
@@ -63,8 +84,6 @@ def ask_davinci(prompt, conversation_history):
     return answer
 
 # Execute code and return output and success status
-import subprocess
-import tempfile
 
 def execute_code(code):
     console.print(f"Executing: {code}")
