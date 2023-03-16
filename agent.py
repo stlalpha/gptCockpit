@@ -151,6 +151,11 @@ if __name__ == "__main__":
     if use_default == "no" or use_default == "n":
         world_context_prompt = input("Please enter your custom world context prompt: ")
 
+    # Prompt for iteration count override
+    use_iteration_override = input("Do you want to override the default iteration count? (yes/no): ").lower()
+    if use_iteration_override == "yes" or use_iteration_override == "y":
+        num_iterations = int(input("Please enter the custom iteration count: "))
+
     main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
     summary_prompt = config["Prompts"]["summary_prompt"]
     summary_response = ask_davinci(summary_prompt, conversation_history)
@@ -159,4 +164,3 @@ if __name__ == "__main__":
 
     console.print(f"User: {summary_prompt}\nAI: {summary_response}")
     sys.exit(0)
-
