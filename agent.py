@@ -28,6 +28,8 @@ def load_env(file_path):
 env_file_path = ".env"
 env_vars = load_env(env_file_path)
 openai_api_key = env_vars.get("OPENAI_API_KEY")
+openai.api_key = openai_api_key
+
 
 
 # Read configuration data from a JSON file
@@ -48,14 +50,6 @@ world_context_prompt = config["Prompts"]["world_context_prompt"]
 loop_prompt_success = config["Prompts"]["loop_prompt_success"]
 loop_prompt_error = config["Prompts"]["loop_prompt_error"]
 num_iterations = config["Settings"]["num_iterations"]
-
-openai_api_key = os.environ.get("OPENAI_API_KEY")
-
-if openai_api_key:
-    openai.api_key = openai_api_key
-else:
-    print("Error: OPENAI_API_KEY environment variable not found.")
-    sys.exit(1)
 
 conversation_history = []
 
