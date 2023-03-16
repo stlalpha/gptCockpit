@@ -54,14 +54,15 @@ def generate_ai_response(prompt, conversation_history):
     history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in conversation_history])
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt=f"{history}\nAI: {prompt}\n",
+        prompt=f"{history}\n{prompt}\n",  # Removed the "AI: " prefix
         max_tokens=500,
         n=1,
         stop=None,
-        temperature=0.5,
+        temperature=0.7,
     )
     answer = response.choices[0].text.strip()
     return answer
+
 
 def execute_code(code):
     print(f"Executing: {code}")
