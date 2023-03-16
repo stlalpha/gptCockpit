@@ -71,7 +71,7 @@ def ask_davinci(prompt, conversation_history):
         max_tokens=500,
         n=1,
         stop=None,
-        temperature=0.7,
+        temperature=0.5,
     )
 
     answer = response.choices[0].text.strip()
@@ -114,20 +114,27 @@ def execute_code(code):
 # Main loop
 
 def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
-    conversation_history = []
+    add_to_history("User", world_context_prompt)  # Add the world context prompt to the conversation history
+    response = ask_davinci(world_context_prompt, conversation_history)  # Get the initial response based on the world context prompt
 
-    def add_to_history(speaker, message):
-        conversation_history.append((speaker, message))
+    if response.startswith("@CODE-SNIPPET:"):
+        add_to_history("AI", response)
+        code_snippet = response[len("@CODE-SNIPPET:"):].strip()
+        print("Executing code snippet...")
+        output, success = execute_code(code_snippet)
+        print("Code snippet output:\n", output)
 
-    def ask_davinci(prompt, history):
-        model_input = build_model_input(prompt, history)
-        response = get_ai_response(model_input)
-        return response
-
-    context = world_context_prompt
-    response = ask_davinci(context, conversation_history)
-    add_to_history("AI", response)
-    print("AI:", response)
+        if success and output.strip():
+            context = loop_prompt_success
+        else:
+            if not output.strip():
+                error_message = "No output was produced."
+            else:
+                error_message = output.split("\n")[-2]
+            context = loop_prompt_error.format(error=error_message)
+            print("Error:", error_message)
+    else:
+        context = response
 
     for _ in range(num_iterations - 1):  # Change the range to `num_iterations - 1` to account for the initial response
         current_prompt = context
@@ -148,18 +155,18 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
             output, success = execute_code(code_snippet)
             print("Code snippet output:\n", output)
 
-            if success:
+            if success and output.strip():
                 context = loop_prompt_success
             else:
-                error_message = (
-                    output.split("\n")[-2]
-                    if output.split("\n")[-2].strip() != ""
-                    else "Error: Code execution produced no output."
-                )
+                if not output.strip():
+                    error_message = "No output was produced."
+                else:
+                    error_message = output.split("\n")[-2]
                 context = loop_prompt_error.format(error=error_message)
                 print("Error:", error_message)
         else:
             context = response
+
 
 
 # ... (The code below this line remains the same)
