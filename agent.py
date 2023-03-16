@@ -111,35 +111,35 @@ def execute_code(code):
 
 # Main loop
 
-# Main loop
 def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
-    response = ask_davinci(world_context_prompt, conversation_history)
+    context = [world_context_prompt]
 
+    initial_response = ask_davinci(world_context_prompt, conversation_history)
     add_to_history("User", world_context_prompt)
-    add_to_history("AI", response)
+    add_to_history("AI", initial_response)
+    print("AI:", initial_response)
 
-    console.print(f"User: [user]{world_context_prompt}\n[/user]AI: [ai]{response}[/ai]")
+    if initial_response.startswith("@CODE-SNIPPET:"):
+        code_snippet = initial_response[len("@CODE-SNIPPET:"):].strip()
+        print("Executing initial code snippet...")
 
-    success = False  # Initialize success variable here
+        output, success = execute_code(code_snippet)
+        print("Initial code snippet output:\n", output)
 
-    for _ in range(num_iterations):
-        response = ask_davinci(loop_prompt_success if success else loop_prompt_error, conversation_history)
-        add_to_history("AI", response)
-        console.print(f"AI: [ai]{response}[/ai]")
-
-        if response.startswith("@CODE-SNIPPET:"):
-            code = response.replace("@CODE-SNIPPET:", "").strip()
-            syntax_code = Syntax(code, "python", theme="monokai", line_numbers=True)
-            console.print(f"Code:\n{syntax_code}")
-            result, success = execute_code(code)
-            console.print(f"Output:\n[output]{result}[/output]")
-
-            if not success:
-                loop_prompt_error = loop_prompt_error.format(error=result.split("\n", 1)[0])
-            else:
-                loop_prompt_error = loop_prompt_error.format(error="")
+        if success:
+            context.append(loop_prompt_success)
         else:
-            loop_prompt_error = loop_prompt_error.format(error="")
+            error_message = output.split("\n")[-2]
+            context.append(loop_prompt_error.format(error=error_message))
+            print("Error:", error_message)
+
+            add_to_history("User", f"@CODE-SNIPPET:\n{code_snippet}")
+            add_to_history("AI", loop_prompt_error.format(error=error_message))
+
+
+
+
+
 
 
 if __name__ == "__main__":
