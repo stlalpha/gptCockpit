@@ -1,13 +1,23 @@
-import os
-import heapq
+import argparse
 import json
-import sys
+import heapq
 from collections import Counter, defaultdict, namedtuple
 
+parser = argparse.ArgumentParser(description='Encode or decode a string using Huffman and LZ77 encoding.')
+parser.add_argument('action', choices=['encode', 'decode'], help='specify whether to encode or decode a string')
+parser.add_argument('string', help='the string to encode or decode')
+args = parser.parse_args()
+
+if args.action != 'encode':
+    print("Error: Only 'encode' action is currently supported.")
+    exit()
+
+input_str = args.string
 
 # Define a named tuple to represent each node in the Huffman tree
 Node = namedtuple('Node', ['freq', 'symbol', 'left', 'right'])
 
+heap = []
 
 def huffman_codebook(text):
     # Count the frequency of each symbol in the text
@@ -41,57 +51,35 @@ def huffman_codebook(text):
 
     return codebook
 
+# Read in the input string from the command line
+parser = argparse.ArgumentParser(description='Encode or decode a string using Huffman and LZ77 encoding.')
+parser.add_argument('input_str', metavar='input_str', type=str, help='the input string to encode or decode')
+args = parser.parse_args()
+input_str = args.input_str
 
-def huffman_encode(text, codebook):
-    # Encode the text using the provided codebook
-    encoded_text = ""
-    for c in text:
-        if c in codebook:
-            encoded_text += codebook[c]
-        else:
-            print(f"Error: {c} not in codebook")
-            return None
+# Calculate the Huffman codebook
+codebook = huffman_codebook(input_str)
 
-    return encoded_text
+# Encode the input string using the Huffman codebook
+encoded_text = ''
+for c in input_str:
+    if ord(c) < 128:
+        encoded_text += codebook[c]
+    else:
+        encoded_text += '{0:b}'.format(ord(c)).zfill(8)
 
+# Apply LZ77 encoding to the Huffman-encoded string
+lz77_encoded_text = encode_lz77(encoded_text)
 
-def huffman_decode(encoded_text, codebook):
-    # Invert the codebook to map from codes to symbols
-    inv_codebook = {v: k for k, v in codebook.items()}
+# Print the results
+print("Input string:", input_str)
+print("Huffman-encoded string:", encoded_text)
+print("LZ77-encoded string:", lz77_encoded_text)
 
-    # Decode the encoded text using the inverted codebook
-    decoded_text = ""
-    code = ""
-    for bit in encoded_text:
-        code += bit
-        if code in inv_codebook:
-            decoded_text += inv_codebook[code]
-            code = ""
+# Allow the user to optionally decode the Huffman and LZ77-encoded strings
+if len(sys.argv) > 2 and sys.argv[2] == 'decode':
+    # Decode the LZ77-encoded string
+    decoded_lz77_text = decode_lz77(lz77_encoded_text)
 
-    return decoded_text
-
-
-def main():
-    # Read in the contents of the sample file
-    if len(sys.argv) < 3:
-        print("Usage: python huffman.py <codebook_file> <text_to_encode>")
-        return
-
-    with open(sys.argv[1], 'r') as f:
-        codebook = json.load(f)
-
-    # Encode the input text using the codebook
-    encoded_text = huffman_encode(sys.argv[2], codebook)
-    if encoded_text is None:
-        return
-
-    print(f"Encoded text: {encoded_text}")
-
-    # Decode the encoded text using the codebook
-    decoded_text = huffman_decode(encoded_text, codebook)
-    print(f"Decoded text: {decoded_text}")
-
-
-if __name__ == "__main__":
-    main()
-
+    # Decode the Huffman-encoded string
+    decoded_huffman_text = huffman_decode(encoded_text, codebook
