@@ -112,7 +112,7 @@ def compress_conversation_history(conversation_history):
         max_tokens=100,  # Adjust the max tokens based on your desired length
         n=1,
         stop=None,
-        temperature=0.5,
+        temperature=0.,
     )
     summarized_history = response.choices[0].text.strip()
     return summarized_history
@@ -242,6 +242,7 @@ world_context_prompt = config["Prompts"]["world_context_prompt"]
 loop_prompt_success = config["Prompts"]["loop_prompt_success"]
 loop_prompt_error = config["Prompts"]["loop_prompt_error"]
 num_iterations = config["Settings"]["num_iterations"]
+compressed_filename = generate_filename("compressed_conversation")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -285,9 +286,9 @@ if __name__ == "__main__":
     print(f"\nUser Prompt: {summary_prompt}\nAI Response: {summary_response}")
 
     # Compress conversation history and save to a file
-    compressed_filename = generate_filename("compressed_conversation")
     compressed_history = compress_conversation_history(conversation_history)
     with open(compressed_filename, 'w') as f:
         f.write(compressed_history)
     
     sys.exit(0)
+
