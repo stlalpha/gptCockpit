@@ -117,7 +117,6 @@ def compress_conversation_history(conversation_history):
     summarized_history = response.choices[0].text.strip()
     return summarized_history
 
-
 #encoding = tiktoken.get_encoding("r50k_base")
 
 
@@ -201,13 +200,12 @@ def execute_code(code):
 
 
 
-def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
+def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations, uncompressed_filename):
     uncompressed_filename = generate_filename("uncompressed_conversation")
     compressed_filename = generate_filename("compressed_conversation")
     
     print_and_track_conversation("User", world_context_prompt, uncompressed_filename)
     response = generate_ai_response(world_context_prompt, conversation_history)
-    print_and_track_conversation("AI", response, uncompressed_filename)
 
     for i in range(num_iterations):
         if response.startswith("@CODE-SNIPPET:"):
@@ -234,6 +232,12 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
         print_and_track_conversation("User", current_prompt, uncompressed_filename)
         response = generate_ai_response(current_prompt, conversation_history)
         print_and_track_conversation("AI", response, uncompressed_filename)
+
+    # Save compressed conversation history to the compressed_filename
+    compressed_history = compress_conversation_history(conversation_history)
+    with open(compressed_filename, 'w') as f:
+        f.write(compressed_history)
+
 
 
 
@@ -275,6 +279,7 @@ if __name__ == "__main__":
                 loop_prompt_success,
                 loop_prompt_error,
                 num_iterations,
+                
             )
     else:
         main_loop(
@@ -283,7 +288,11 @@ if __name__ == "__main__":
 
     summary_prompt = config["Prompts"]["summary_prompt"]
     summary_response = generate_ai_response(summary_prompt, conversation_history)
-    print(f"\nUser Prompt: {summary_prompt}\nAI Response: {summary_response}")
+    #print(f"\nUser Prompt: {summary_prompt}\nAI Response: {summary_response}")
+
+   # Add summary to conversation_history
+    print_and_track_conversation("User", summary_prompt, uncompressed_filename)
+    print_and_track_conversation("AI", summary_response, uncompressed_filename)
 
     # Compress conversation history and save to a file
     compressed_history = compress_conversation_history(conversation_history)
