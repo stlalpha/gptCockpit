@@ -22,14 +22,15 @@ def load_env(file_path):
     env_vars = {}
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             for line in f:
-                key, value = line.strip().split('=', 1)
+                key, value = line.strip().split("=", 1)
                 env_vars[key] = value
     except FileNotFoundError:
         print(f"Error: Unable to read the .env file at '{file_path}'.")
 
     return env_vars
+
 
 env_file_path = ".env"
 env_vars = load_env(env_file_path)
@@ -39,18 +40,20 @@ openai.api_key = openai_api_key
 # Read configuration data from a JSON file
 def read_config(file_path):
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             config = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         print(f"Error: Unable to read or parse configuration file '{file_path}'.")
         sys.exit(1)
-    
+
     return config
+
 
 config_file_path = "config.json"
 config = read_config(config_file_path)
 
 conversation_history = []
+
 
 @contextmanager
 def use_fake_openai_api():
@@ -59,7 +62,9 @@ def use_fake_openai_api():
     def fake_create(*args, **kwargs):
         response = MagicMock()
         response.choices = [MagicMock()]
-        response.choices[0].text = "AI: Here is a code snippet for you: print('Hello, World!')"
+        response.choices[
+            0
+        ].text = "AI: Here is a code snippet for you: print('Hello, World!')"
         return response
 
     openai.Completion.create = fake_create
@@ -74,18 +79,22 @@ def print_and_track_conversation(role, content):
     print(f"{role}: {content}")
 
 
-
 def handle_code_snippet(response):
     if response.startswith("@CODE-SNIPPET:"):
-        code_snippet = response[len("@CODE-SNIPPET:"):].strip()
+        code_snippet = response[len("@CODE-SNIPPET:") :].strip()
         return True, code_snippet
     else:
         return False, None
 
+
 def compress_conversation_history(conversation_history):
-    history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in conversation_history])
-    prompt = f"Please provide a summarized version of the following conversation:\n{history}"
-    
+    history = "".join(
+        [f"{msg['role']}: {msg['content']}\n" for msg in conversation_history]
+    )
+    prompt = (
+        f"Please provide a summarized version of the following conversation:\n{history}"
+    )
+
     # Call the AI to summarize the conversation
     response = openai.Completion.create(
         engine="text-davinci-003",
@@ -98,6 +107,7 @@ def compress_conversation_history(conversation_history):
     summarized_history = response.choices[0].text.strip()
     return summarized_history
 
+
 encoding = tiktoken.get_encoding("r50k_base")
 
 
@@ -109,8 +119,12 @@ def num_tokens_from_string(string: str, encoding_name: str) -> int:
 
 
 def generate_ai_response(prompt, conversation_history):
-    max_history_tokens = 4096 - num_tokens_from_string(prompt, "r50k_base") - 50  # Reserve some tokens for AI response
-    history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in conversation_history])
+    max_history_tokens = (
+        4096 - num_tokens_from_string(prompt, "r50k_base") - 50
+    )  # Reserve some tokens for AI response
+    history = "".join(
+        [f"{msg['role']}: {msg['content']}\n" for msg in conversation_history]
+    )
     token_count = num_tokens_from_string(history, "r50k_base")
 
     if token_count > max_history_tokens:
@@ -140,12 +154,12 @@ def generate_ai_response(prompt, conversation_history):
     return answer
 
 
-
 def truncate_text(text, max_lines=10):
     lines = text.splitlines()
     if len(lines) > max_lines:
         lines = lines[:max_lines]
-    return '\n'.join(lines)
+    return "\n".join(lines)
+
 
 def execute_code(code):
     print(f"Executing: {code}")
@@ -158,7 +172,7 @@ def execute_code(code):
             ["python", temp_file.name],
             text=True,
             capture_output=True,
-            timeout=10  # Set a timeout to prevent long-running or infinite loops
+            timeout=10,  # Set a timeout to prevent long-running or infinite loops
         )
 
         stdout_output = result.stdout
@@ -176,13 +190,16 @@ def execute_code(code):
     output = f"STDOUT:\n{stdout_output}\nSTDERR:\n{stderr_output}"
     return output, success
 
-def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
+
+def main_loop(
+    world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations
+):
     print_and_track_conversation("User", world_context_prompt)
     response = generate_ai_response(world_context_prompt, conversation_history)
 
     for i in range(num_iterations):
         if response.startswith("@CODE-SNIPPET:"):
-            code_snippet = response[len("@CODE-SNIPPET:"):].strip()
+            code_snippet = response[len("@CODE-SNIPPET:") :].strip()
             print("Executing code snippet...\n", code_snippet)
 
             output, success = execute_code(code_snippet)
@@ -207,32 +224,47 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
         print_and_track_conversation("AI", response)
 
 
-
 world_context_prompt = config["Prompts"]["world_context_prompt"]
 loop_prompt_success = config["Prompts"]["loop_prompt_success"]
 loop_prompt_error = config["Prompts"]["loop_prompt_error"]
 num_iterations = config["Settings"]["num_iterations"]
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the AI agent with a fake service or the real OpenAI API.")
-    parser.add_argument("--use-fake-api", action="store_true",
-                        help="Use the fake OpenAI API service instead of the real one.")
+    parser = argparse.ArgumentParser(
+        description="Run the AI agent with a fake service or the real OpenAI API."
+    )
+    parser.add_argument(
+        "--use-fake-api",
+        action="store_true",
+        help="Use the fake OpenAI API service instead of the real one.",
+    )
 
     args = parser.parse_args()
 
-    use_default = input("Do you want to use the default world context prompt? (yes/no): ").lower()
+    use_default = input(
+        "Do you want to use the default world context prompt? (yes/no): "
+    ).lower()
     if use_default == "no" or use_default == "n":
         world_context_prompt = input("Please enter your custom world context prompt: ")
 
-    override_iterations = input("Do you want to override the default iteration count? (yes/no): ").lower()
+    override_iterations = input(
+        "Do you want to override the default iteration count? (yes/no): "
+    ).lower()
     if override_iterations == "yes" or override_iterations == "y":
         num_iterations = int(input("Please enter the custom iteration count: "))
 
     if args.use_fake_api:
         with use_fake_openai_api():
-            main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
+            main_loop(
+                world_context_prompt,
+                loop_prompt_success,
+                loop_prompt_error,
+                num_iterations,
+            )
     else:
-        main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
+        main_loop(
+            world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations
+        )
 
     summary_prompt = config["Prompts"]["summary_prompt"]
     summary_response = generate_ai_response(summary_prompt, conversation_history)
