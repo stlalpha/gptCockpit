@@ -14,6 +14,7 @@ import tempfile
 import argparse
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
+from datetime import datetime
 import tiktoken
 
 
@@ -74,9 +75,17 @@ def use_fake_openai_api():
         openai.Completion.create = original_create
 
 
-def print_and_track_conversation(role, content):
+def generate_filename(prefix):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{prefix}_{timestamp}.txt"
+
+
+
+def print_and_track_conversation(role, content, history_file):
     conversation_history.append({"role": role, "content": content})
     print(f"{role}: {content}")
+    with open(history_file, 'a') as f:
+        f.write(f"{role}: {content}\n")
 
 
 def handle_code_snippet(response):
@@ -108,7 +117,7 @@ def compress_conversation_history(conversation_history):
     return summarized_history
 
 
-encoding = tiktoken.get_encoding("r50k_base")
+#encoding = tiktoken.get_encoding("r50k_base")
 
 
 def num_tokens_from_string(string: str, encoding_name: str) -> int:
@@ -191,11 +200,13 @@ def execute_code(code):
     return output, success
 
 
-def main_loop(
-    world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations
-):
-    print_and_track_conversation("User", world_context_prompt)
+def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
+    uncompressed_filename = generate_filename("uncompressed_conversation")
+    compressed_filename = generate_filename("compressed_conversation")
+    
+    print_and_track_conversation("User", world_context_prompt, uncompressed_filename)
     response = generate_ai_response(world_context_prompt, conversation_history)
+
 
     for i in range(num_iterations):
         if response.startswith("@CODE-SNIPPET:"):
@@ -269,4 +280,10 @@ if __name__ == "__main__":
     summary_prompt = config["Prompts"]["summary_prompt"]
     summary_response = generate_ai_response(summary_prompt, conversation_history)
     print(f"\nUser Prompt: {summary_prompt}\nAI Response: {summary_response}")
+
+    # Compress conversation history and save to a file
+    compressed_history = compress_conversation_history(conversation_history)
+    with open(compressed_filename, 'w') as f:
+        f.write(compressed_history)
+    
     sys.exit(0)
