@@ -164,14 +164,13 @@ def generate_ai_response(prompt, conversation_history):
     return answer
 
 
-def truncate_text(text, max_lines=10):
-    lines = text.splitlines()
-    if len(lines) > max_lines:
-        lines = lines[:max_lines]
-    return "\n".join(lines)
-
-
 def execute_code(code):
+    def truncate_output(text, max_lines=10):
+        lines = text.splitlines()
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+        return "\n".join(lines)
+
     print(f"Executing: {code}")
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as temp_file:
         temp_file.write(code)
@@ -185,8 +184,8 @@ def execute_code(code):
             timeout=10,  # Set a timeout to prevent long-running or infinite loops
         )
 
-        stdout_output = result.stdout
-        stderr_output = result.stderr
+        stdout_output = truncate_output(result.stdout)
+        stderr_output = truncate_output(result.stderr)
         success = result.returncode == 0 and stdout_output.strip() != ""
 
     except subprocess.TimeoutExpired:
@@ -199,6 +198,7 @@ def execute_code(code):
 
     output = f"STDOUT:\n{stdout_output}\nSTDERR:\n{stderr_output}"
     return output, success
+
 
 
 def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
