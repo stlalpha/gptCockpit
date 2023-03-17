@@ -202,9 +202,12 @@ def execute_code(code):
 
 
 def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
-    uncompressed_filename = generate_filename("uncompressed_conversation")    
+    uncompressed_filename = generate_filename("uncompressed_conversation")
+    compressed_filename = generate_filename("compressed_conversation")
+    
     print_and_track_conversation("User", world_context_prompt, uncompressed_filename)
     response = generate_ai_response(world_context_prompt, conversation_history)
+    print_and_track_conversation("AI", response, uncompressed_filename)
 
     for i in range(num_iterations):
         if response.startswith("@CODE-SNIPPET:"):
@@ -231,6 +234,7 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
         print_and_track_conversation("User", current_prompt, uncompressed_filename)
         response = generate_ai_response(current_prompt, conversation_history)
         print_and_track_conversation("AI", response, uncompressed_filename)
+
 
 
 
