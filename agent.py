@@ -1,5 +1,6 @@
 import configparser
 import json
+import tokenize
 import openai
 import os
 import sys
@@ -13,6 +14,7 @@ import tempfile
 import argparse
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
+import tiktoken
 
 
 # read secrets
@@ -96,13 +98,20 @@ def compress_conversation_history(conversation_history):
     summarized_history = response.choices[0].text.strip()
     return summarized_history
 
-def count_tokens(text):
-    return len(openai.tokenizer.encode(text))
+encoding = tiktoken.get_encoding("r50k_base")
+
+
+def num_tokens_from_string(string: str, encoding_name: str) -> int:
+    """Returns the number of tokens in a text string."""
+    encoding = tiktoken.get_encoding("r50k_base")
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
+
 
 def generate_ai_response(prompt, conversation_history):
-    max_history_tokens = 4096 - count_tokens(prompt) - 50  # Reserve some tokens for AI response
+    max_history_tokens = 4096 - num_tokens_from_string(prompt, "r50k_base") - 50  # Reserve some tokens for AI response
     history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in conversation_history])
-    token_count = count_tokens(history)
+    token_count = num_tokens_from_string(history, "r50k_base")
 
     if token_count > max_history_tokens:
         print("Compressing conversation history...")
@@ -110,7 +119,7 @@ def generate_ai_response(prompt, conversation_history):
         history = summarized_history
 
     full_prompt = f"{history}\nAI: {prompt}\n"
-    token_count = count_tokens(full_prompt)
+    token_count = num_tokens_from_string(full_prompt, "r50k_base")
     print(f"Token count: {token_count}")
 
     response = openai.Completion.create(
