@@ -80,25 +80,55 @@ def handle_code_snippet(response):
     else:
         return False, None
 
-def generate_ai_response(prompt, conversation_history):
+def compress_conversation_history(conversation_history):
     history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in conversation_history])
+    prompt = f"Please provide a summarized version of the following conversation:\n{history}"
+    
+    # Call the AI to summarize the conversation
     response = openai.Completion.create(
         engine="text-davinci-003",
-        prompt=f"{history}\nAI: {prompt}\n",
+        prompt=prompt,
+        max_tokens=100,  # Adjust the max tokens based on your desired length
+        n=1,
+        stop=None,
+        temperature=0.5,
+    )
+    summarized_history = response.choices[0].text.strip()
+    return summarized_history
+
+def count_tokens(text):
+    return len(openai.tokenizer.encode(text))
+
+def generate_ai_response(prompt, conversation_history):
+    max_history_tokens = 4096 - count_tokens(prompt) - 50  # Reserve some tokens for AI response
+    history = "".join([f"{msg['role']}: {msg['content']}\n" for msg in conversation_history])
+    token_count = count_tokens(history)
+
+    if token_count > max_history_tokens:
+        print("Compressing conversation history...")
+        summarized_history = compress_conversation_history(conversation_history)
+        history = summarized_history
+
+    full_prompt = f"{history}\nAI: {prompt}\n"
+    token_count = count_tokens(full_prompt)
+    print(f"Token count: {token_count}")
+
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=full_prompt,
         max_tokens=500,
         n=1,
         stop=None,
         temperature=0.5,
     )
     answer = response.choices[0].text.strip()
-    
+
     # Remove the "AI: " prefix before adding the response to the conversation history
     while answer.startswith("AI:") or answer.startswith("AI: "):
         answer = answer.lstrip("AI:").lstrip()
-    
+
     conversation_history.append({"role": "AI", "content": answer})
     return answer
-
 
 
 
@@ -166,6 +196,8 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
         print_and_track_conversation("User", current_prompt)
         response = generate_ai_response(current_prompt, conversation_history)
         print_and_track_conversation("AI", response)
+
+
 
 world_context_prompt = config["Prompts"]["world_context_prompt"]
 loop_prompt_success = config["Prompts"]["loop_prompt_success"]
