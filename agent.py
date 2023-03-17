@@ -1,14 +1,8 @@
 import configparser
 import json
-import tokenize
 import openai
 import os
 import sys
-import traceback
-from io import StringIO
-from contextlib import redirect_stdout, redirect_stderr
-from rich.console import Console
-from rich.syntax import Syntax
 import subprocess
 import tempfile
 import argparse
@@ -17,9 +11,7 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime
 import tiktoken
 
-#TODO get compressed bits stored as tapes and be able to load context.  be able to string them together and have only the pointer hot in the context window.  use sqlite or sqldb to store
-
-# read secrets
+# Read environment variables
 def load_env(file_path):
     env_vars = {}
 
@@ -32,7 +24,6 @@ def load_env(file_path):
         print(f"Error: Unable to read the .env file at '{file_path}'.")
 
     return env_vars
-
 
 env_file_path = ".env"
 env_vars = load_env(env_file_path)
@@ -50,13 +41,21 @@ def read_config(file_path):
 
     return config
 
+config_file_path = "config.json"
+config = read_config(config_file_path)
+
+world_context_prompt = config["Prompts"]["world_context_prompt"]
+loop_prompt_success = config["Prompts"]["loop_prompt_success"]
+loop_prompt_error = config["Prompts"]["loop_prompt_error"]
+num_iterations = config["Settings"]["num_iterations"]
+
 
 config_file_path = "config.json"
 config = read_config(config_file_path)
 
 conversation_history = []
 
-
+# Fake API for testing purposes
 @contextmanager
 def use_fake_openai_api():
     original_create = openai.Completion.create
@@ -75,20 +74,22 @@ def use_fake_openai_api():
     finally:
         openai.Completion.create = original_create
 
-
+# Generate unique filename based on timestamp
 def generate_filename(prefix):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{prefix}_{timestamp}.txt"
 
+uncompressed_filename = generate_filename("uncompressed_conversation")
+compressed_filename = generate_filename("compressed_conversation")
 
-
+# Add message to conversation history and print it
 def print_and_track_conversation(role, content, history_file):
     conversation_history.append({"role": role, "content": content})
     print(f"{role}: {content}")
     with open(history_file, 'a') as f:
         f.write(f"{role}: {content}\n")
 
-
+# Check if the AI response contains a code snippet
 def handle_code_snippet(response):
     if response.startswith("@CODE-SNIPPET:"):
         code_snippet = response[len("@CODE-SNIPPET:") :].strip()
@@ -96,13 +97,13 @@ def handle_code_snippet(response):
     else:
         return False, None
 
-
+# Compress conversation history using the AI
 def compress_conversation_history(conversation_history):
     history = "".join(
         [f"{msg['role']}: {msg['content']}\n" for msg in conversation_history]
     )
     prompt = (
-        f"Please provide a summarized version of the following conversation:\n{history}"
+        f"Please provide a summarized version of the following conversation but retain any key detail that is important:\n{history}"
     )
 
     # Call the AI to summarize the conversation
@@ -117,24 +118,21 @@ def compress_conversation_history(conversation_history):
     summarized_history = response.choices[0].text.strip()
     return summarized_history
 
-#encoding = tiktoken.get_encoding("r50k_base")
-
-
-def num_tokens_from_string(string: str, encoding_name: str) -> int:
-    """Returns the number of tokens in a text string."""
+# Calculate the number of tokens in a text string
+def num_tokens_from_string(string: str) -> int:
     encoding = tiktoken.get_encoding("r50k_base")
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
-
+# Generate AI response based on the prompt and conversation history
 def generate_ai_response(prompt, conversation_history):
     max_history_tokens = (
-        4096 - num_tokens_from_string(prompt, "r50k_base") - 50
+        4096 - num_tokens_from_string(prompt) - 50
     )  # Reserve some tokens for AI response
     history = "".join(
         [f"{msg['role']}: {msg['content']}\n" for msg in conversation_history]
     )
-    token_count = num_tokens_from_string(history, "r50k_base")
+    token_count = num_tokens_from_string(history)
 
     if token_count > max_history_tokens:
         print("Compressing conversation history...")
@@ -142,7 +140,7 @@ def generate_ai_response(prompt, conversation_history):
         history = summarized_history
 
     full_prompt = f"{history}\nAI: {prompt}\n"
-    token_count = num_tokens_from_string(full_prompt, "r50k_base")
+    token_count = num_tokens_from_string(full_prompt)
     print(f"Token count: {token_count}")
 
     response = openai.Completion.create(
@@ -162,7 +160,7 @@ def generate_ai_response(prompt, conversation_history):
     conversation_history.append({"role": "AI", "content": answer})
     return answer
 
-
+# Execute code and return output
 def execute_code(code):
     def truncate_output(text, max_lines=10):
         lines = text.splitlines()
@@ -198,12 +196,10 @@ def execute_code(code):
     output = f"STDOUT:\n{stdout_output}\nSTDERR:\n{stderr_output}"
     return output, success
 
+# Main loop to execute the AI agent
+def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
 
 
-def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations, uncompressed_filename):
-    uncompressed_filename = generate_filename("uncompressed_conversation")
-    compressed_filename = generate_filename("compressed_conversation")
-    
     print_and_track_conversation("User", world_context_prompt, uncompressed_filename)
     response = generate_ai_response(world_context_prompt, conversation_history)
 
@@ -238,16 +234,7 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
     with open(compressed_filename, 'w') as f:
         f.write(compressed_history)
 
-
-
-
-
-world_context_prompt = config["Prompts"]["world_context_prompt"]
-loop_prompt_success = config["Prompts"]["loop_prompt_success"]
-loop_prompt_error = config["Prompts"]["loop_prompt_error"]
-num_iterations = config["Settings"]["num_iterations"]
-compressed_filename = generate_filename("compressed_conversation")
-
+# Run the AI agent
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run the AI agent with a fake service or the real OpenAI API."
@@ -279,7 +266,6 @@ if __name__ == "__main__":
                 loop_prompt_success,
                 loop_prompt_error,
                 num_iterations,
-                
             )
     else:
         main_loop(
@@ -288,9 +274,8 @@ if __name__ == "__main__":
 
     summary_prompt = config["Prompts"]["summary_prompt"]
     summary_response = generate_ai_response(summary_prompt, conversation_history)
-    #print(f"\nUser Prompt: {summary_prompt}\nAI Response: {summary_response}")
 
-   # Add summary to conversation_history
+    # Add summary to conversation_history
     print_and_track_conversation("User", summary_prompt, uncompressed_filename)
     print_and_track_conversation("AI", summary_response, uncompressed_filename)
 
@@ -298,6 +283,5 @@ if __name__ == "__main__":
     compressed_history = compress_conversation_history(conversation_history)
     with open(compressed_filename, 'w') as f:
         f.write(compressed_history)
-    
-    sys.exit(0)
 
+    sys.exit(0)
