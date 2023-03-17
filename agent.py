@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime
 import tiktoken
 
+#TODO get compressed bits stored as tapes and be able to load context.  be able to string them together and have only the pointer hot in the context window.  use sqlite or sqldb to store
 
 # read secrets
 def load_env(file_path):
