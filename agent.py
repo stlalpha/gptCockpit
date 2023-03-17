@@ -202,12 +202,9 @@ def execute_code(code):
 
 
 def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations):
-    uncompressed_filename = generate_filename("uncompressed_conversation")
-    compressed_filename = generate_filename("compressed_conversation")
-    
+    uncompressed_filename = generate_filename("uncompressed_conversation")    
     print_and_track_conversation("User", world_context_prompt, uncompressed_filename)
     response = generate_ai_response(world_context_prompt, conversation_history)
-
 
     for i in range(num_iterations):
         if response.startswith("@CODE-SNIPPET:"):
@@ -231,9 +228,10 @@ def main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_
         else:
             current_prompt = response
 
-        print_and_track_conversation("User", current_prompt)
+        print_and_track_conversation("User", current_prompt, uncompressed_filename)
         response = generate_ai_response(current_prompt, conversation_history)
-        print_and_track_conversation("AI", response)
+        print_and_track_conversation("AI", response, uncompressed_filename)
+
 
 
 world_context_prompt = config["Prompts"]["world_context_prompt"]
@@ -283,6 +281,7 @@ if __name__ == "__main__":
     print(f"\nUser Prompt: {summary_prompt}\nAI Response: {summary_response}")
 
     # Compress conversation history and save to a file
+    compressed_filename = generate_filename("compressed_conversation")
     compressed_history = compress_conversation_history(conversation_history)
     with open(compressed_filename, 'w') as f:
         f.write(compressed_history)
