@@ -10,6 +10,10 @@ from rich.console import Console
 from rich.syntax import Syntax
 import subprocess
 import tempfile
+import argparse
+from contextlib import contextmanager
+from unittest.mock import MagicMock, patch
+
 
 # read secrets
 def load_env(file_path):
@@ -45,6 +49,23 @@ config_file_path = "config.json"
 config = read_config(config_file_path)
 
 conversation_history = []
+
+@contextmanager
+def use_fake_openai_api():
+    original_create = openai.Completion.create
+
+    def fake_create(*args, **kwargs):
+        response = MagicMock()
+        response.choices = [MagicMock()]
+        response.choices[0].text = "AI: Here is a code snippet for you: print('Hello, World!')"
+        return response
+
+    openai.Completion.create = fake_create
+    try:
+        yield
+    finally:
+        openai.Completion.create = original_create
+
 
 def print_and_track_conversation(role, content):
     conversation_history.append({"role": role, "content": content})
@@ -152,6 +173,12 @@ loop_prompt_error = config["Prompts"]["loop_prompt_error"]
 num_iterations = config["Settings"]["num_iterations"]
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run the AI agent with a fake service or the real OpenAI API.")
+    parser.add_argument("--use-fake-api", action="store_true",
+                        help="Use the fake OpenAI API service instead of the real one.")
+
+    args = parser.parse_args()
+
     use_default = input("Do you want to use the default world context prompt? (yes/no): ").lower()
     if use_default == "no" or use_default == "n":
         world_context_prompt = input("Please enter your custom world context prompt: ")
@@ -160,7 +187,12 @@ if __name__ == "__main__":
     if override_iterations == "yes" or override_iterations == "y":
         num_iterations = int(input("Please enter the custom iteration count: "))
 
-    main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
+    if args.use_fake_api:
+        with use_fake_openai_api():
+            main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
+    else:
+        main_loop(world_context_prompt, loop_prompt_success, loop_prompt_error, num_iterations)
+
     summary_prompt = config["Prompts"]["summary_prompt"]
     summary_response = generate_ai_response(summary_prompt, conversation_history)
     print(f"\nUser Prompt: {summary_prompt}\nAI Response: {summary_response}")
